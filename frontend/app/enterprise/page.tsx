@@ -1,15 +1,15 @@
 "use client";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   Upload, FileText, CheckCircle2, Loader2, AlertCircle,
   ExternalLink, ChevronDown, ChevronUp, Copy, Clock,
   Zap, GitPullRequest, Bell, Database, AlertTriangle,
-  ShieldAlert, Info, BarChart3
+  ShieldAlert, Info, BarChart3, Send, Bot, User, Trash2, MessageSquare
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useStore, PipelineEvent, JobResult } from "@/store/useStore";
-import { uploadEnterprise, getJobResult } from "@/lib/api";
+import { uploadEnterprise, getJobResult, ragChat } from "@/lib/api";
 import { subscribeToJob } from "@/lib/sse";
 
 const STEPS = [
@@ -26,57 +26,65 @@ const RISK_COLOR: Record<string, string> = {
   low: "#42b4ff", compliant: "#42ffa1",
 };
 
+const SUGGESTIONS = [
+  "Which contracts allow unlimited sub-processing?",
+  "Show me all data retention clauses",
+  "What DPDP violations were found?",
+  "Compare termination clauses across vendors",
+];
+
 function RiskBadge({ level }: { level: string }) {
-  return <span className={`badge badge-${level}`}>{level}</span>;
+  return <span style={{ fontSize: "11px", fontWeight: "bold", padding: "4px 8px", background: "#111111", color: RISK_COLOR[level] || "#fff", textTransform: "uppercase" }}>{level}</span>;
 }
 
 function ClauseCard({ clause }: { clause: JobResult["clauses"][0] }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{
-      borderRadius: "16px", overflow: "hidden",
-      background: "var(--bg-card)",
-      border: `1px solid ${RISK_COLOR[clause.risk_level] ?? "var(--border)"}33`,
-      marginBottom: "8px",
+      borderRadius: "0px", overflow: "hidden",
+      background: "var(--bg)",
+      border: `2px solid #111111`,
+      marginBottom: "12px",
+      boxShadow: "4px 4px 0 #111111"
     }}>
       <button
         style={{ width: "100%", display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 20px", textAlign: "left", background: "none", border: "none", cursor: "pointer" }}
         onClick={() => setOpen(o => !o)}
       >
-        <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: RISK_COLOR[clause.risk_level], flexShrink: 0, marginTop: "6px", boxShadow: `0 0 8px ${RISK_COLOR[clause.risk_level]}66` }} />
+        <div style={{ width: "12px", height: "12px", borderRadius: "0%", border: "2px solid #111111", background: RISK_COLOR[clause.risk_level] || "#111111", flexShrink: 0, marginTop: "6px" }} />
         <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "6px" }}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
             <RiskBadge level={clause.risk_level} />
-            <span className="badge" style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-muted)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <span style={{ fontSize: "11px", fontWeight: "bold", padding: "4px 8px", background: "transparent", color: "#111111", border: "1px solid #111111", textTransform: "uppercase" }}>
               {clause.clause_type.replace(/_/g, " ")}
             </span>
-            <span className="badge" style={{ background: "var(--accent-muted)", color: "var(--accent)", border: "1px solid var(--border-bright)" }}>
+            <span style={{ fontSize: "11px", fontWeight: "bold", padding: "4px 8px", background: "var(--accent)", color: "#111111", border: "1px solid #111111", textTransform: "uppercase" }}>
               {clause.regulation}
             </span>
           </div>
-          <p style={{ fontSize: "13px", color: "var(--text-body)", WebkitLineClamp: 2, overflow: "hidden", display: "-webkit-box", WebkitBoxOrient: "vertical" }}>
+          <p style={{ fontSize: "14px", color: "#111111", fontWeight: 600, WebkitLineClamp: 2, overflow: "hidden", display: "-webkit-box", WebkitBoxOrient: "vertical", lineHeight: 1.5 }}>
             {clause.text}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{Math.round(clause.confidence * 100)}%</span>
-          {open ? <ChevronUp size={15} color="var(--text-muted)" /> : <ChevronDown size={15} color="var(--text-muted)" />}
+          <span style={{ fontSize: "13px", fontWeight: "bold", color: "#111111" }}>{Math.round(clause.confidence * 100)}%</span>
+          {open ? <ChevronUp size={16} color="#111111" strokeWidth={3} /> : <ChevronDown size={16} color="#111111" strokeWidth={3} />}
         </div>
       </button>
       {open && (
-        <div style={{ padding: "0 20px 20px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ paddingTop: "16px", marginBottom: "12px" }}>
-            <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>ORIGINAL</p>
-            <p style={{ fontSize: "13px", color: "var(--accent)" }}>{clause.text}</p>
+        <div style={{ padding: "0 20px 20px", borderTop: "2px solid #111111" }}>
+          <div style={{ paddingTop: "16px", marginBottom: "16px" }}>
+            <p style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.05em", color: "#111111", marginBottom: "6px" }}>ORIGINAL</p>
+            <p style={{ fontSize: "14px", color: "#111111", fontWeight: 500, lineHeight: 1.5 }}>{clause.text}</p>
           </div>
-          <div style={{ marginBottom: "12px" }}>
-            <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>RISK EXPLANATION</p>
-            <p style={{ fontSize: "13px", color: "var(--text-body)" }}>{clause.explanation}</p>
+          <div style={{ marginBottom: "16px" }}>
+            <p style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.05em", color: "#111111", marginBottom: "6px" }}>RISK EXPLANATION</p>
+            <p style={{ fontSize: "14px", color: "var(--text-body)", lineHeight: 1.5 }}>{clause.explanation}</p>
           </div>
           {clause.redlined_text && (
-            <div style={{ padding: "14px 16px", borderRadius: "12px", background: "rgba(66,255,161,0.06)", border: "1px solid rgba(66,255,161,0.2)" }}>
-              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", color: "#42ffa1", marginBottom: "6px" }}>✦ COMPLIANT REDLINE</p>
-              <p style={{ fontSize: "13px", color: "var(--accent)" }}>{clause.redlined_text}</p>
+            <div style={{ padding: "16px", background: "#f2fff7", border: "2px solid #111111" }}>
+              <p style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.05em", color: "#111111", marginBottom: "6px" }}>✦ COMPLIANT REDLINE</p>
+              <p style={{ fontSize: "14px", color: "#111111", fontWeight: 600, lineHeight: 1.5 }}>{clause.redlined_text}</p>
             </div>
           )}
         </div>
@@ -86,23 +94,29 @@ function ClauseCard({ clause }: { clause: JobResult["clauses"][0] }) {
 }
 
 function UploadZone({ onJobStart }: { onJobStart: (id: string) => void }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [orgId, setOrgId] = useState("org_001");
-  const [projectId, setProjectId] = useState("proj_001");
+  const [files, setFiles] = useState<File[]>([]);
+  const [orgId, setOrgId] = useState("acme-corp");
+  const [projectId, setProjectId] = useState("vendor-q3");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: useCallback((f: File[]) => { if (f[0]) { setFile(f[0]); setError(null); } }, []),
+    onDrop: useCallback((dropped: File[]) => {
+      setFiles(prev => {
+        const existing = new Set(prev.map(f => f.name));
+        return [...prev, ...dropped.filter(f => !existing.has(f.name))];
+      });
+      setError(null);
+    }, []),
     accept: { "application/pdf": [".pdf"], "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"] },
-    maxFiles: 1, maxSize: 52_428_800,
+    multiple: true, maxSize: 52_428_800,
   });
 
   async function submit() {
-    if (!file) return;
+    if (!files.length) return;
     setUploading(true); setError(null);
     try {
-      const r = await uploadEnterprise(file, orgId, projectId);
+      const r = await uploadEnterprise(files[0], orgId, projectId);
       onJobStart(r.job_id);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -112,48 +126,67 @@ function UploadZone({ onJobStart }: { onJobStart: (id: string) => void }) {
 
   return (
     <div style={{ maxWidth: "640px", margin: "0 auto" }}>
-      <div {...getRootProps()} className={`drop-zone ${isDragActive ? "active" : ""}`}
-        style={{ padding: "72px 40px", textAlign: "center" }}>
+      <div {...getRootProps()}
+        style={{ padding: files.length ? "32px 40px" : "72px 40px", textAlign: "center", border: "4px solid #111111", borderRadius: "0", background: "var(--bg)", boxShadow: "8px 8px 0 var(--accent)", cursor: "pointer", transition: "padding 0.2s" }}>
         <input {...getInputProps()} />
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-          <div style={{ width: "72px", height: "72px", borderRadius: "20px", background: "var(--accent-muted)", border: "1px solid var(--border-bright)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {file ? <FileText size={32} color="var(--accent)" /> : <Upload size={32} color="var(--accent)" />}
+          <div style={{ width: "72px", height: "72px", background: "var(--accent)", border: "4px solid #111111", display: "flex", alignItems: "center", justifyContent: "center", transform: isDragActive ? "scale(1.08)" : "none", transition: "transform 0.2s" }}>
+            {files.length > 0 ? <FileText size={32} color="#ffffff" strokeWidth={2.5} /> : <Upload size={32} color="#ffffff" strokeWidth={2.5} />}
           </div>
-          {file ? (
-            <div>
-              <p style={{ fontWeight: 600, color: "var(--accent)" }}>{file.name}</p>
-              <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>{(file.size / 1024 / 1024).toFixed(2)} MB · Click to change</p>
-            </div>
-          ) : (
-            <div>
-              <p style={{ fontWeight: 600, color: "var(--accent)", marginBottom: "6px" }}>{isDragActive ? "Drop it here!" : "Drop your contract here"}</p>
-              <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>PDF or DOCX · max 50MB</p>
-            </div>
-          )}
+          <div>
+            <p style={{ fontWeight: 900, color: "#111111", marginBottom: "8px", fontSize: "18px", textTransform: "uppercase" }}>
+              {isDragActive ? "Drop here!" : files.length ? "Drop more or click to add" : "Drop contracts here"}
+            </p>
+            <p style={{ fontSize: "14px", color: "var(--text-body)", fontWeight: 600 }}>PDF or DOCX · max 50MB each · multiple files OK</p>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", margin: "16px 0" }}>
+      {files.length > 0 && (
+        <div style={{ margin: "20px 0", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <p style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.08em", color: "#111111", marginBottom: "4px" }}>
+            {files.length} FILE{files.length > 1 ? "S" : ""} SELECTED
+          </p>
+          {files.map((f) => (
+            <div key={f.name} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", border: "2px solid #111111", background: "var(--bg)", boxShadow: "2px 2px 0 #111111" }}>
+              <div style={{ width: "28px", height: "28px", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <FileText size={14} color="#ffffff" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: "14px", fontWeight: 800, color: "#111111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</p>
+                <p style={{ fontSize: "12px", color: "var(--text-body)", fontWeight: 600 }}>{(f.size / 1024 / 1024).toFixed(2)} MB</p>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); setFiles(prev => prev.filter(x => x.name !== f.name)); }}
+                style={{ background: "transparent", border: "2px solid #ff4d4d", padding: "4px 10px", cursor: "pointer", fontSize: "13px", fontWeight: 800, color: "#ff4d4d" }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", margin: "20px 0" }}>
         {[["ORG ID", orgId, setOrgId], ["PROJECT ID", projectId, setProjectId]].map(([label, val, setter]) => (
           <div key={label as string}>
-            <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "8px" }}>{label as string}</p>
-            <input className="input-field" value={val as string} onChange={e => (setter as (v: string) => void)(e.target.value)} />
+            <p style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.05em", color: "#111111", marginBottom: "8px" }}>{label as string}</p>
+            <input style={{ width: "100%", padding: "14px", fontSize: "15px", border: "2px solid #111111", background: "var(--bg)", color: "#111111", fontWeight: 600, outline: "none" }} value={val as string} onChange={e => (setter as (v: string) => void)(e.target.value)} />
           </div>
         ))}
       </div>
 
       {error && (
-        <div style={{ display: "flex", gap: "10px", padding: "14px 16px", borderRadius: "12px", background: "rgba(255,77,77,0.08)", border: "1px solid rgba(255,77,77,0.25)", marginBottom: "12px" }}>
-          <AlertCircle size={15} color="#ff7070" />
-          <span style={{ fontSize: "13px", color: "#ff7070" }}>{error}</span>
+        <div style={{ display: "flex", gap: "10px", padding: "16px", background: "#ffeeee", border: "2px solid #ff4d4d", marginBottom: "16px" }}>
+          <AlertCircle size={18} color="#ff4d4d" strokeWidth={3} />
+          <span style={{ fontSize: "14px", color: "#ff4d4d", fontWeight: 700 }}>{error}</span>
         </div>
       )}
 
-      <button className="btn-primary" disabled={!file || uploading}
-        style={{ width: "100%", justifyContent: "center", padding: "16px", fontSize: "15px", opacity: !file || uploading ? 0.4 : 1 }}
-        onClick={submit}>
-        {uploading ? <Loader2 size={18} className="anim-spin" /> : <Zap size={18} />}
-        {uploading ? "Uploading…" : "Launch 7-Agent Pipeline"}
+      <button disabled={!files.length || uploading}
+        style={{ width: "100%", padding: "20px", fontSize: "16px", fontWeight: 900, textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", background: !files.length || uploading ? "rgba(17,17,17,0.05)" : "var(--accent)", color: !files.length || uploading ? "rgba(17,17,17,0.4)" : "#ffffff", border: "4px solid #111111", boxShadow: "6px 6px 0 #111111", cursor: !files.length || uploading ? "not-allowed" : "pointer", transition: "transform 0.1s" }}
+        onClick={submit}
+        onMouseDown={e => { if (files.length && !uploading) { e.currentTarget.style.transform = "translate(4px, 4px)"; e.currentTarget.style.boxShadow = "2px 2px 0 #111111"; } }}
+        onMouseUp={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "6px 6px 0 #111111"; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "6px 6px 0 #111111"; }}>
+        {uploading ? <Loader2 size={20} className="anim-spin" /> : <Zap size={20} strokeWidth={3} />}
+        {uploading ? "Uploading…" : `Launch Pipeline${files.length > 1 ? ` (${files.length} files)` : ""}`}
       </button>
     </div>
   );
@@ -167,12 +200,45 @@ function PipelineMonitor({ jobId, onComplete }: { jobId: string; onComplete: (r:
   useEffect(() => {
     const unsub = subscribeToJob(jobId,
       (ev) => {
-        addPipelineEvent(ev as PipelineEvent);
-        const idx = STEPS.findIndex(s => s.key === (ev as PipelineEvent).event);
+        const event = ev as PipelineEvent;
+        addPipelineEvent(event);
+        const idx = STEPS.findIndex(s => s.key === event.event);
         if (idx >= 0) setActiveStep(idx);
+
+        // pipeline_complete carries the full result inline — use it directly
+        if (event.event === "pipeline_complete") {
+          const raw = ev as Record<string, unknown>;
+          const summary = {
+            total_clauses: (raw.total_clauses as number) ?? 0,
+            violation: (raw.violation_count as number) ?? 0,
+            high: (raw.high_count as number) ?? 0,
+            medium: (raw.medium_count as number) ?? 0,
+            low: 0,
+            compliant: 0,
+          };
+          summary.low = Math.max(0, summary.total_clauses - summary.violation - summary.high - summary.medium);
+          const result: JobResult = {
+            job_id: jobId,
+            status: "complete",
+            filename: (raw.filename as string) || jobId,
+            duration_seconds: (raw.duration_seconds as number) ?? 0,
+            summary,
+            clauses: (raw.clauses as JobResult["clauses"]) || [],
+            contradictions: (raw.contradictions as JobResult["contradictions"]) || [],
+            historical_flags: (raw.historical_flags as JobResult["historical_flags"]) || [],
+            github_pr_url: (raw.pr_url as string) || "",
+            slack_sent: (raw.slack_sent as boolean) || false,
+            audit_trail: { file_hash: "", timestamp: "" },
+          };
+          onComplete(result);
+        }
       },
       async () => {
-        try { onComplete(await getJobResult(jobId)); } catch { /* noop */ }
+        // fallback: poll if SSE closes without pipeline_complete
+        try {
+          const r = await getJobResult(jobId);
+          if (r.status === "complete") onComplete(r);
+        } catch { /* noop */ }
       }
     );
     return unsub;
@@ -181,13 +247,13 @@ function PipelineMonitor({ jobId, onComplete }: { jobId: string; onComplete: (r:
 
   return (
     <div style={{ maxWidth: "560px", margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderRadius: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", marginBottom: "24px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: "var(--accent)", border: "4px solid #111111", marginBottom: "32px", boxShadow: "4px 4px 0 #111111" }}>
         <div>
-          <p style={{ fontSize: "11px", color: "var(--text-muted)", letterSpacing: "0.1em" }}>JOB ID</p>
-          <p style={{ fontFamily: "monospace", fontSize: "13px", color: "var(--accent)" }}>{jobId}</p>
+          <p style={{ fontSize: "11px", color: "#111111", fontWeight: 800, letterSpacing: "0.1em" }}>JOB ID</p>
+          <p style={{ fontFamily: "monospace", fontSize: "14px", color: "#111111", fontWeight: 900 }}>{jobId}</p>
         </div>
-        <button onClick={() => navigator.clipboard.writeText(jobId)} style={{ background: "none", border: "none", cursor: "pointer" }}>
-          <Copy size={14} color="var(--text-muted)" />
+        <button onClick={() => navigator.clipboard.writeText(jobId)} style={{ background: "#111111", border: "none", cursor: "pointer", padding: "8px" }}>
+          <Copy size={16} color="var(--accent)" />
         </button>
       </div>
 
@@ -197,22 +263,21 @@ function PipelineMonitor({ jobId, onComplete }: { jobId: string; onComplete: (r:
           const active = !done && i === activeStep;
           const classify = pipelineEvents.find(e => e.event === "classification_progress");
           return (
-            <div key={step.key} className={`step-line ${done ? "done" : ""}`} style={{ position: "relative", display: "flex", gap: "16px", marginBottom: "8px" }}>
+            <div key={step.key} style={{ position: "relative", display: "flex", gap: "20px", marginBottom: "16px" }}>
               <div style={{
-                width: "40px", height: "40px", borderRadius: "12px", flexShrink: 0,
+                width: "48px", height: "48px", flexShrink: 0,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                background: done ? "rgba(66,255,161,0.12)" : active ? "var(--accent-muted)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${done ? "rgba(66,255,161,0.35)" : active ? "var(--border-bright)" : "rgba(255,255,255,0.07)"}`,
-                transition: "all 0.4s",
+                background: done ? "#42ffa1" : active ? "var(--accent)" : "transparent",
+                border: "2px solid #111111",
               }}>
-                {done ? <CheckCircle2 size={18} color="#42ffa1" /> : active ? <Loader2 size={18} color="var(--accent)" className="anim-spin" /> : <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--text-muted)" }} />}
+                {done ? <CheckCircle2 size={24} color="#111111" strokeWidth={3} /> : active ? <Loader2 size={24} color="#ffffff" className="anim-spin" /> : <div style={{ width: "10px", height: "10px", background: "#111111" }} />}
               </div>
-              <div style={{ paddingBottom: "24px", flex: 1 }}>
-                <p style={{ fontSize: "14px", fontWeight: 600, color: done ? "var(--accent)" : active ? "var(--accent)" : "var(--text-muted)" }}>{step.label}</p>
-                <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+              <div style={{ paddingBottom: "24px", flex: 1, borderBottom: "2px solid rgba(17,17,17,0.1)" }}>
+                <p style={{ fontSize: "18px", fontWeight: 900, textTransform: "uppercase", color: "#111111" }}>{step.label}</p>
+                <p style={{ fontSize: "14px", color: "var(--text-body)", marginTop: "4px", fontWeight: 500 }}>
                   {step.sub}
-                  {step.key === "extraction_complete" && done && <> · {pipelineEvents.find(e => e.event === "extraction_complete")?.clause_count} clauses</>}
-                  {step.key === "classification_complete" && classify && <> · {classify.done}/{classify.total}</>}
+                  {step.key === "extraction_complete" && done && <> · <b>{pipelineEvents.find(e => e.event === "extraction_complete")?.clause_count} clauses</b></>}
+                  {step.key === "classification_complete" && classify && <> · <b>{classify.done}/{classify.total}</b></>}
                 </p>
               </div>
             </div>
@@ -229,61 +294,65 @@ function RiskReport({ result }: { result: JobResult }) {
   return (
     <div>
       {/* header */}
-      <div className="card" style={{ padding: "28px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
+      <div style={{ padding: "28px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", marginBottom: "24px", flexWrap: "wrap", border: "4px solid #111111", boxShadow: "8px 8px 0 #111111", background: "var(--bg)" }}>
         <div>
-          <p className="section-label" style={{ marginBottom: "6px" }}>ANALYSIS COMPLETE</p>
-          <h2 className="font-display" style={{ fontSize: "clamp(28px, 3vw, 44px)", color: "var(--accent)", lineHeight: 0.95 }}>{result.filename}</h2>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "8px" }}>
-            <Clock size={12} style={{ display: "inline", marginRight: "4px" }} />
+          <p style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "0.1em", color: "#111111", marginBottom: "6px" }}>ANALYSIS COMPLETE</p>
+          <h2 className="font-display" style={{ fontSize: "clamp(28px, 3vw, 44px)", color: "#111111", lineHeight: 0.95 }}>{result.filename}</h2>
+          <p style={{ fontSize: "14px", color: "var(--text-body)", marginTop: "8px", fontWeight: 600 }}>
+            <Clock size={14} style={{ display: "inline", marginRight: "4px" }} />
             {result.duration_seconds?.toFixed(1)}s · {result.summary.total_clauses} clauses
           </p>
         </div>
         {result.github_pr_url && (
-          <a href={result.github_pr_url} target="_blank" rel="noreferrer">
-            <button className="btn-ghost"><GitPullRequest size={14} /> View PR</button>
+          <a href={result.github_pr_url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+            <button style={{ padding: "12px 20px", background: "transparent", border: "2px solid #111111", fontWeight: 800, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "#111111" }}>
+              <GitPullRequest size={16} strokeWidth={3} /> View PR
+            </button>
           </a>
         )}
       </div>
 
       {/* summary */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px", marginBottom: "16px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "24px" }}>
         {(["violation","high","medium","low","compliant"] as const).map(level => (
-          <div key={level} style={{ padding: "20px", borderRadius: "16px", background: "var(--bg-card)", border: `1px solid ${RISK_COLOR[level]}33`, textAlign: "center" }}>
-            <div className="font-display" style={{ fontSize: "40px", color: RISK_COLOR[level], lineHeight: 1 }}>{result.summary[level as keyof typeof result.summary]}</div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px", textTransform: "capitalize" }}>{level}</div>
+          <div key={level} style={{ padding: "20px 10px", background: "var(--bg)", border: `2px solid #111111`, borderBottom: `6px solid ${RISK_COLOR[level] || "#111111"}`, textAlign: "center" }}>
+            <div className="font-display" style={{ fontSize: "48px", color: "#111111", lineHeight: 1 }}>{result.summary[level as keyof typeof result.summary]}</div>
+            <div style={{ fontSize: "12px", fontWeight: 800, color: "#111111", marginTop: "8px", textTransform: "uppercase" }}>{level}</div>
           </div>
         ))}
       </div>
 
       {/* outputs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "16px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
         {[
-          { icon: GitPullRequest, color: "#42ffa1", title: "GitHub PR Created", sub: result.github_pr_url ? "View redline diff →" : "—" },
-          { icon: Bell, color: "#ffc542", title: "Slack Alert Sent", sub: "3-line severity summary" },
-          { icon: Database, color: "var(--accent)", title: "Audit Trail Logged", sub: `sha256:${result.audit_trail?.file_hash?.slice(0,10)}…` },
+          { icon: GitPullRequest, color: "#42ffa1", title: "GitHub PR Created", sub: result.github_pr_url ? "View redline diff →" : "Not created" },
+          { icon: Bell, color: "#ffc542", title: "Slack Alert", sub: result.slack_sent ? "Sent to channel ✓" : "Not sent" },
+          { icon: Database, color: "var(--accent)", title: "Audit Trail", sub: result.audit_trail?.file_hash ? `sha256:${result.audit_trail.file_hash.slice(0,10)}…` : "Logged" },
         ].map((item, i) => (
-          <div key={i} className="card" style={{ padding: "18px 20px", display: "flex", gap: "12px", alignItems: "center" }}>
-            <item.icon size={18} color={item.color} />
+          <div key={i} style={{ padding: "18px 20px", display: "flex", gap: "12px", alignItems: "center", border: "2px solid #111111", background: "var(--bg)" }}>
+            <div style={{ width: "36px", height: "36px", background: "#111111", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <item.icon size={18} color={item.color} strokeWidth={3} />
+            </div>
             <div>
-              <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--accent)" }}>{item.title}</p>
-              <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>{item.sub}</p>
+              <p style={{ fontSize: "14px", fontWeight: 800, color: "#111111", textTransform: "uppercase" }}>{item.title}</p>
+              <p style={{ fontSize: "12px", color: "var(--text-body)", marginTop: "2px", fontWeight: 600 }}>{item.sub}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* tabs */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
         {(["clauses","contradictions","flags"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
-            padding: "9px 20px", borderRadius: "100px", fontSize: "13px", fontWeight: 600,
-            background: tab === t ? "var(--accent)" : "transparent",
-            color: tab === t ? "var(--bg)" : "var(--text-muted)",
-            border: `1px solid ${tab === t ? "var(--accent)" : "var(--border)"}`,
+            padding: "12px 24px", fontSize: "14px", fontWeight: 800, textTransform: "uppercase",
+            background: tab === t ? "#111111" : "transparent",
+            color: tab === t ? "var(--accent)" : "#111111",
+            border: "2px solid #111111",
             cursor: "pointer", transition: "all 0.2s",
           }}>
-            {t === "flags" ? "Hist. Flags" : t.charAt(0).toUpperCase() + t.slice(1)}
-            <span style={{ marginLeft: "6px", opacity: 0.6, fontSize: "11px" }}>
+            {t === "flags" ? "Hist. Flags" : t}
+            <span style={{ marginLeft: "8px", opacity: 0.8 }}>
               {t === "clauses" ? result.clauses.length : t === "contradictions" ? result.contradictions.length : result.historical_flags.length}
             </span>
           </button>
@@ -296,10 +365,10 @@ function RiskReport({ result }: { result: JobResult }) {
             const clauses = result.clauses.filter(c => c.risk_level === level);
             if (!clauses.length) return null;
             return (
-              <div key={level} style={{ marginBottom: "28px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                  <RiskBadge level={level} />
-                  <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{clauses.length} clause{clauses.length > 1 ? "s" : ""}</span>
+              <div key={level} style={{ marginBottom: "32px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 800, padding: "6px 12px", background: "#111111", color: RISK_COLOR[level] || "#fff", textTransform: "uppercase" }}>{level} RISK</span>
+                  <span style={{ fontSize: "14px", color: "#111111", fontWeight: "bold" }}>{clauses.length} clause{clauses.length > 1 ? "s" : ""}</span>
                 </div>
                 {clauses.map(c => <ClauseCard key={c.clause_id} clause={c} />)}
               </div>
@@ -311,25 +380,25 @@ function RiskReport({ result }: { result: JobResult }) {
       {tab === "contradictions" && (
         <div>
           {result.contradictions.length === 0 ? (
-            <div className="card" style={{ padding: "60px", textAlign: "center" }}>
-              <CheckCircle2 size={32} color="#42ffa1" style={{ margin: "0 auto 12px" }} />
-              <p style={{ color: "var(--text-muted)" }}>No contradictions detected.</p>
+            <div style={{ padding: "60px", textAlign: "center", border: "2px solid #111111" }}>
+              <CheckCircle2 size={48} color="#111111" style={{ margin: "0 auto 16px" }} />
+              <p style={{ color: "#111111", fontWeight: "bold", fontSize: "16px", textTransform: "uppercase" }}>No contradictions detected.</p>
             </div>
           ) : result.contradictions.map((c, i) => (
-            <div key={i} className="card" style={{ padding: "24px", marginBottom: "12px" }}>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-                <AlertTriangle size={16} color="#ff8c42" />
-                <span style={{ fontSize: "14px", fontWeight: 600, color: "#ff8c42" }}>Contradiction — {c.severity}</span>
+            <div key={i} style={{ padding: "24px", marginBottom: "16px", border: "2px solid #111111", boxShadow: "4px 4px 0 #111111" }}>
+              <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+                <AlertTriangle size={20} color="#ff8c42" strokeWidth={3} />
+                <span style={{ fontSize: "16px", fontWeight: 800, color: "#111111", textTransform: "uppercase" }}>Contradiction — {c.severity}</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 {[{id: c.clause_a_id, text: c.clause_a_text}, {id: c.clause_b_id, text: c.clause_b_text}].map((s, j) => (
-                  <div key={j} style={{ padding: "14px 16px", borderRadius: "12px", background: "rgba(255,140,66,0.06)", border: "1px solid rgba(255,140,66,0.2)" }}>
-                    <p style={{ fontFamily: "monospace", fontSize: "12px", color: "#ff8c42", marginBottom: "6px" }}>{s.id}</p>
-                    <p style={{ fontSize: "13px", color: "var(--text-body)" }}>{s.text}</p>
+                  <div key={j} style={{ padding: "16px", background: "#fff5f0", border: "2px solid #ff8c42" }}>
+                    <p style={{ fontFamily: "monospace", fontSize: "12px", color: "#111111", fontWeight: "bold", marginBottom: "8px" }}>{s.id}</p>
+                    <p style={{ fontSize: "14px", color: "#111111", fontWeight: 500 }}>{s.text}</p>
                   </div>
                 ))}
               </div>
-              <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "12px" }}>{c.explanation}</p>
+              <p style={{ fontSize: "14px", color: "#111111", fontWeight: 600, marginTop: "16px", padding: "16px", background: "rgba(17,17,17,0.05)" }}>{c.explanation}</p>
             </div>
           ))}
         </div>
@@ -338,19 +407,19 @@ function RiskReport({ result }: { result: JobResult }) {
       {tab === "flags" && (
         <div>
           {result.historical_flags.length === 0 ? (
-            <div className="card" style={{ padding: "60px", textAlign: "center" }}>
-              <ShieldAlert size={32} color="#42ffa1" style={{ margin: "0 auto 12px" }} />
-              <p style={{ color: "var(--text-muted)" }}>No historical flags found.</p>
+            <div style={{ padding: "60px", textAlign: "center", border: "2px solid #111111" }}>
+              <ShieldAlert size={48} color="#111111" style={{ margin: "0 auto 16px" }} />
+              <p style={{ color: "#111111", fontWeight: "bold", fontSize: "16px", textTransform: "uppercase" }}>No historical flags found.</p>
             </div>
           ) : result.historical_flags.map((f, i) => (
-            <div key={i} className="card" style={{ padding: "24px", marginBottom: "12px" }}>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
-                <Info size={15} color="var(--accent)" />
-                <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--accent)" }}>Previously flagged</span>
-                <RiskBadge level={f.original_risk_level} />
+            <div key={i} style={{ padding: "24px", marginBottom: "16px", border: "2px solid #111111", boxShadow: "4px 4px 0 #111111" }}>
+              <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
+                <Info size={18} color="#111111" strokeWidth={3} />
+                <span style={{ fontSize: "14px", fontWeight: 800, color: "#111111", textTransform: "uppercase" }}>Previously flagged</span>
+                <span style={{ fontSize: "11px", fontWeight: "bold", padding: "2px 6px", background: "#111111", color: RISK_COLOR[f.original_risk_level] || "#fff", textTransform: "uppercase" }}>{f.original_risk_level}</span>
               </div>
-              <p style={{ fontSize: "13px", color: "var(--text-body)", marginBottom: "10px" }}>{f.text}</p>
-              <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+              <p style={{ fontSize: "15px", color: "#111111", fontWeight: 500, marginBottom: "12px" }}>{f.text}</p>
+              <p style={{ fontSize: "12px", color: "var(--text-body)", fontWeight: "bold" }}>
                 {f.flagged_in_project} · {f.flagged_in_job} · {new Date(f.flagged_date).toLocaleDateString()}
               </p>
             </div>
@@ -362,63 +431,187 @@ function RiskReport({ result }: { result: JobResult }) {
 }
 
 export default function EnterprisePage() {
-  const { currentJobId, jobResult, isProcessing, setCurrentJobId, setJobResult, setIsProcessing, resetPipeline } = useStore();
+  const { currentJobId, jobResult, isProcessing, setCurrentJobId, setJobResult, setIsProcessing, resetPipeline, chatHistory, addChatMessage, clearChat } = useStore();
 
   const phase = !currentJobId ? "upload" : isProcessing ? "monitor" : "result";
 
-  return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <Navbar />
-      <div style={{ paddingTop: "100px", paddingBottom: "80px", padding: "100px 28px 80px" }}>
-        {/* header */}
-        <div style={{ maxWidth: "1200px", margin: "0 auto 60px", textAlign: "center" }}>
-          <p className="section-label" style={{ marginBottom: "12px" }}>CAVEAT · ENTERPRISE PIPELINE</p>
-          <h1 className="font-display" style={{ fontSize: "clamp(56px, 9vw, 120px)", color: "var(--accent)", lineHeight: 0.88, letterSpacing: "-0.02em" }}>
-            CONTRACT
-            <br />
-            <span style={{ color: "rgba(232,148,255,0.35)" }}>ANALYSIS</span>
-          </h1>
-          <p style={{ marginTop: "20px", fontSize: "16px", color: "var(--text-body)" }}>
-            7-agent LangGraph pipeline · Risk classify · Redline · GitHub PR · Slack
-          </p>
+  // Chat State
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [chatOrgId, setChatOrgId] = useState("acme-corp");
+  const [chatProjectId, setChatProjectId] = useState("vendor-q3");
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-          {/* phase tabs */}
-          <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "32px" }}>
-            {[
-              { key: "upload", label: "Upload", icon: Upload },
-              { key: "monitor", label: "Pipeline", icon: BarChart3 },
-              { key: "result", label: "Results", icon: CheckCircle2 },
-            ].map(({ key, label, icon: Icon }) => (
-              <div key={key} style={{
-                display: "flex", alignItems: "center", gap: "8px",
-                padding: "10px 20px", borderRadius: "100px", fontSize: "13px", fontWeight: 600,
-                background: phase === key ? "var(--accent)" : "transparent",
-                color: phase === key ? "var(--bg)" : "var(--text-muted)",
-                border: `1px solid ${phase === key ? "var(--accent)" : "var(--border)"}`,
-              }}>
-                <Icon size={14} />{label}
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatHistory, loading]);
+
+  async function send() {
+    const q = query.trim(); if (!q || loading) return;
+    setQuery(""); addChatMessage({ role: "user", content: q }); setLoading(true);
+    try {
+      const res = await ragChat(chatOrgId, chatProjectId, q, chatHistory.map(m => ({ role: m.role, content: m.content })));
+      addChatMessage({ role: "assistant", content: res.answer, sources: res.sources });
+    } catch (e: unknown) {
+      addChatMessage({ role: "assistant", content: `Error: ${e instanceof Error ? e.message : "Something went wrong"}` });
+    } finally { setLoading(false); }
+  }
+
+  return (
+    <div className="theme-light" style={{ height: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Navbar />
+      
+      <div style={{ display: "flex", flex: 1, overflow: "hidden", paddingTop: "80px" }}>
+        
+        {/* LEFT SECTION: PIPELINE */}
+        <div style={{ flex: 1, overflowY: "auto", borderRight: "4px solid #111111", padding: "60px 40px", display: "flex", flexDirection: "column" }}>
+          <div style={{ maxWidth: "800px", margin: "0 auto", width: "100%" }}>
+            
+            <div style={{ textAlign: "center", marginBottom: "60px" }}>
+              <p style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "0.1em", color: "#111111", marginBottom: "12px" }}>CAVEAT · ENTERPRISE PIPELINE</p>
+              <h1 className="font-display" style={{ fontSize: "clamp(48px, 6vw, 100px)", color: "#111111", lineHeight: 0.9, letterSpacing: "-0.02em" }}>
+                CONTRACT
+                <br />
+                <span style={{ color: "transparent", WebkitTextStroke: "2px #111111" }}>ANALYSIS</span>
+              </h1>
+            </div>
+
+            {phase === "upload" && (
+              <UploadZone onJobStart={id => { resetPipeline(); setCurrentJobId(id); setIsProcessing(true); }} />
+            )}
+            {phase === "monitor" && currentJobId && (
+              <PipelineMonitor jobId={currentJobId} onComplete={r => { setJobResult(r); setIsProcessing(false); }} />
+            )}
+            {phase === "result" && jobResult && <RiskReport result={jobResult} />}
+
+            {phase !== "upload" && (
+              <div style={{ textAlign: "center", marginTop: "40px" }}>
+                <button onClick={resetPipeline} style={{ fontSize: "14px", fontWeight: 800, textTransform: "uppercase", padding: "12px 24px", background: "transparent", border: "2px solid #111111", cursor: "pointer", color: "#111111" }}>
+                  ← Analyse another contract
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT SECTION: RAG CHAT */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(0,0,0,0.02)" }}>
+          
+          <div style={{ padding: "20px 32px", borderBottom: "4px solid #111111", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", background: "var(--bg)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ width: "48px", height: "48px", background: "#111111", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #111111" }}>
+                <Database size={24} color="#ffffff" strokeWidth={2.5} />
+              </div>
+              <div>
+                <p style={{ fontWeight: 900, color: "#111111", fontSize: "18px", textTransform: "uppercase" }}>RAG Contract Chat</p>
+                <p style={{ fontSize: "13px", color: "var(--text-body)", fontWeight: 600 }}>ChromaDB + Qwen3-32B</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <input style={{ width: "120px", fontSize: "14px", fontWeight: 600, padding: "10px 14px", border: "2px solid #111111", background: "var(--bg)", outline: "none" }} placeholder="Org ID" value={chatOrgId} onChange={e => setChatOrgId(e.target.value)} />
+              <input style={{ width: "140px", fontSize: "14px", fontWeight: 600, padding: "10px 14px", border: "2px solid #111111", background: "var(--bg)", outline: "none" }} placeholder="Project ID" value={chatProjectId} onChange={e => setChatProjectId(e.target.value)} />
+              {chatHistory.length > 0 && (
+                <button onClick={clearChat} style={{ width: "42px", height: "42px", background: "transparent", border: "2px solid #ff4d4d", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <Trash2 size={18} color="#ff4d4d" strokeWidth={3} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: "40px", display: "flex", flexDirection: "column", gap: "32px" }}>
+            {chatHistory.length === 0 && (
+              <div style={{ margin: "auto 0", textAlign: "center" }}>
+                <div style={{ width: "96px", height: "96px", background: "transparent", border: "4px solid #111111", boxShadow: "6px 6px 0 #111111", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 32px" }}>
+                  <MessageSquare size={48} color="#111111" strokeWidth={2} />
+                </div>
+                <h2 className="font-display" style={{ fontSize: "clamp(48px, 6vw, 80px)", color: "#111111", lineHeight: 0.9, letterSpacing: "-0.02em" }}>
+                  ASK YOUR<br /><span style={{ color: "transparent", WebkitTextStroke: "2px #111111" }}>CONTRACTS</span>
+                </h2>
+                
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "48px", maxWidth: "600px", margin: "48px auto 0" }}>
+                  {SUGGESTIONS.map((s, i) => (
+                    <button key={i} onClick={() => setQuery(s)} style={{
+                      padding: "20px", textAlign: "left", fontSize: "14px", fontWeight: 700, color: "#111111",
+                      background: "var(--bg)", cursor: "pointer", border: "2px solid #111111",
+                      boxShadow: "4px 4px 0 #111111", transition: "all 0.1s",
+                    }}
+                    onMouseDown={e => { e.currentTarget.style.transform = "translate(2px, 2px)"; e.currentTarget.style.boxShadow = "2px 2px 0 #111111"; }}
+                    onMouseUp={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "4px 4px 0 #111111"; }}>
+                      <span style={{ color: "var(--accent)" }}>→ </span>{s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {chatHistory.map((msg, i) => (
+              <div key={i} style={{ display: "flex", gap: "16px", maxWidth: "800px", margin: "0 auto", width: "100%", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+                <div style={{
+                  width: "48px", height: "48px", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: msg.role === "user" ? "#111111" : "var(--accent)",
+                  border: "2px solid #111111",
+                }}>
+                  {msg.role === "user" ? <User size={24} color="var(--bg)" strokeWidth={2.5} /> : <Bot size={24} color="#ffffff" strokeWidth={2.5} />}
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1, alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{ padding: "20px 24px", maxWidth: "85%", fontSize: "15px", fontWeight: 600, lineHeight: "1.6", color: "#111111", background: "var(--bg)", border: "2px solid #111111", boxShadow: msg.role === "user" ? "-4px 4px 0 #111111" : "4px 4px 0 #111111" }}>
+                    {msg.content}
+                  </div>
+
+                  {msg.sources && msg.sources.length > 0 && (
+                    <div style={{ width: "100%", marginTop: "8px" }}>
+                      <p style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.1em", color: "#111111", marginBottom: "12px" }}>SOURCES</p>
+                      {msg.sources.map((src, j) => (
+                        <div key={j} style={{ padding: "16px", background: "var(--bg)", border: "2px solid #111111", display: "flex", gap: "12px", alignItems: "flex-start", marginBottom: "8px" }}>
+                          <Database size={16} color="#111111" style={{ flexShrink: 0, marginTop: "2px" }} strokeWidth={2.5} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
+                              <span style={{ fontSize: "14px", fontWeight: 800, color: "#111111", textTransform: "uppercase" }}>{src.filename}</span>
+                              <span style={{ padding: "2px 6px", background: "#111111", color: "var(--bg)", fontSize: "10px", fontWeight: 800 }}>{src.clause_id}</span>
+                              <span style={{ fontSize: "12px", fontWeight: 800, color: "var(--accent)" }}>{Math.round(src.relevance_score * 100)}%</span>
+                            </div>
+                            <p style={{ fontSize: "13px", color: "var(--text-body)", fontWeight: 500, lineHeight: 1.5 }}>{src.clause_text}</p>
+                          </div>
+                          <ExternalLink size={14} color="#111111" style={{ flexShrink: 0 }} strokeWidth={2.5} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
+
+            {loading && (
+              <div style={{ display: "flex", gap: "16px", maxWidth: "800px", margin: "0 auto", width: "100%" }}>
+                <div style={{ width: "48px", height: "48px", background: "var(--accent)", border: "2px solid #111111", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Bot size={24} color="#ffffff" strokeWidth={2.5} />
+                </div>
+                <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: "12px", background: "var(--bg)", border: "2px solid #111111", boxShadow: "4px 4px 0 #111111" }}>
+                  <Loader2 size={18} color="#111111" className="anim-spin" strokeWidth={3} />
+                  <span style={{ fontSize: "15px", fontWeight: 800, color: "#111111", textTransform: "uppercase" }}>Searching contracts…</span>
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          <div style={{ padding: "24px 32px", borderTop: "4px solid #111111", background: "var(--bg)" }}>
+            <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", gap: "16px" }}>
+              <input style={{ flex: 1, padding: "16px 20px", fontSize: "15px", fontWeight: 600, border: "4px solid #111111", outline: "none", color: "#111111", background: "var(--bg)" }}
+                placeholder="Ask about any clause, regulation, or risk…"
+                value={query} onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()} disabled={loading} />
+              <button onClick={send} disabled={!query.trim() || loading}
+                style={{ padding: "16px 32px", background: !query.trim() || loading ? "rgba(17,17,17,0.05)" : "var(--accent)", border: "4px solid #111111", boxShadow: "4px 4px 0 #111111", color: !query.trim() || loading ? "rgba(17,17,17,0.4)" : "#ffffff", fontWeight: 900, fontSize: "15px", textTransform: "uppercase", cursor: !query.trim() || loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "transform 0.1s" }}
+                onMouseDown={e => { if(!(!query.trim() || loading)) { e.currentTarget.style.transform = "translate(2px, 2px)"; e.currentTarget.style.boxShadow = "2px 2px 0 #111111"; } }}
+                onMouseUp={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "4px 4px 0 #111111"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "4px 4px 0 #111111"; }}>
+                {loading ? <Loader2 size={18} className="anim-spin" /> : <Send size={18} strokeWidth={3} />}
+                Send
+              </button>
+            </div>
           </div>
         </div>
-
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          {phase === "upload" && (
-            <UploadZone onJobStart={id => { resetPipeline(); setCurrentJobId(id); setIsProcessing(true); }} />
-          )}
-          {phase === "monitor" && currentJobId && (
-            <PipelineMonitor jobId={currentJobId} onComplete={r => { setJobResult(r); setIsProcessing(false); }} />
-          )}
-          {phase === "result" && jobResult && <RiskReport result={jobResult} />}
-        </div>
-
-        {phase !== "upload" && (
-          <div style={{ textAlign: "center", marginTop: "40px" }}>
-            <button className="btn-ghost" onClick={resetPipeline} style={{ fontSize: "13px" }}>
-              ← Analyse another contract
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

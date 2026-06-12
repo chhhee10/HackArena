@@ -35,6 +35,7 @@ export default function Home() {
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <Navbar />
 
+      <main style={{ position: "relative", zIndex: 10, background: "var(--bg)", marginBottom: "100vh", boxShadow: "0 20px 60px rgba(0,0,0,0.8)" }}>
       {/* HERO */}
       <section style={{ height: "100vh", position: "relative", overflow: "hidden" }}>
         <div style={{
@@ -175,9 +176,9 @@ export default function Home() {
             <p style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "0.15em", color: "var(--accent)", marginBottom: "16px", textTransform: "uppercase" }}>LANGGRAPH ORCHESTRATION</p>
             <h2 className="font-display" style={{ 
               fontSize: "clamp(80px, 11vw, 150px)", 
-              lineHeight: 0.85, 
+              lineHeight: 1.0, 
               letterSpacing: "-0.02em", 
-              color: "var(--text-header)", 
+              color: "#111111", 
               marginBottom: "32px",
               transform: "scaleX(0.8)",
               transformOrigin: "left",
@@ -214,7 +215,7 @@ export default function Home() {
                   {agent.id}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: activeAgent === i ? "var(--accent)" : "var(--text-body)" }}>{agent.name}</p>
+                  <p style={{ fontSize: "16px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: activeAgent === i ? "var(--accent)" : "#111111" }}>{agent.name}</p>
                   <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px", fontWeight: 500 }}>{agent.desc}</p>
                 </div>
               </div>
@@ -228,107 +229,126 @@ export default function Home() {
       ══════════════════════════════════════════ */}
       <section style={{ padding: "120px 36px" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <div className="card" style={{ padding: "72px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "80px", alignItems: "center" }}>
+          <div style={{ 
+            padding: "80px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "80px", alignItems: "center",
+            background: "var(--bg)", 
+            border: "4px solid #111111", 
+            borderBottom: "16px solid #111111", 
+            borderRight: "10px solid #111111"
+          }}>
             <div>
-              <p className="section-label" style={{ marginBottom: "14px", color: "var(--accent)" }}>CHROMADB VECTOR MEMORY</p>
-              <h2 className="font-display" style={{ fontSize: "clamp(52px, 6vw, 88px)", lineHeight: 0.88, color: "var(--text-header)", marginBottom: "28px", letterSpacing: "-0.02em" }}>
-                MEMORY<br />THAT<br /><span style={{ color: "var(--text-muted)", WebkitTextStroke: "1px var(--text-muted)" }}>NEVER</span><br /><span style={{ color: "var(--text-muted)", WebkitTextStroke: "1px var(--text-muted)" }}>FORGETS</span>
+              <p style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "0.15em", color: "var(--accent)", marginBottom: "16px", textTransform: "uppercase" }}>CHROMADB VECTOR MEMORY</p>
+              <h2 className="font-display" style={{ 
+                fontSize: "clamp(64px, 8vw, 120px)", lineHeight: 1.0, color: "#111111", marginBottom: "32px", letterSpacing: "-0.02em",
+                transform: "scaleX(0.8)", transformOrigin: "left"
+              }}>
+                MEMORY<br />THAT<br />
+                <span style={{ color: "transparent", WebkitTextStroke: "3px var(--accent)" }}>NEVER</span><br />
+                <span style={{ color: "transparent", WebkitTextStroke: "3px var(--accent)" }}>FORGETS.</span>
               </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                 {[
-                  { icon: AlertTriangle, text: "Cross-document contradiction detection" },
-                  { icon: Eye,           text: "Historical flag inheritance across projects" },
-                  { icon: Shield,        text: "RAG Q&A over all project contracts" },
+                  { text: "Cross-document contradiction detection" },
+                  { text: "Historical flag inheritance across projects" },
+                  { text: "RAG Q&A over all project contracts" },
                 ].map((item, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <item.icon size={15} color="var(--accent)" />
-                    <span style={{ fontSize: "14px", color: "var(--text-body)" }}>{item.text}</span>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div style={{ width: "12px", height: "12px", background: "var(--accent)", flexShrink: 0 }} />
+                    <span style={{ fontSize: "16px", fontWeight: 800, color: "#111111", textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               {[
                 { label: "org_acme_global",       count: 847, max: 900 },
                 { label: "org_acme_proj_vendors",  count: 124, max: 900 },
                 { label: "org_acme_proj_saas",     count: 53,  max: 900 },
               ].map((col, i) => (
-                <div key={i} style={{ padding: "18px 22px", borderRadius: "14px", background: "rgba(232,148,255,0.05)", border: "1px solid var(--border)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                    <span style={{ fontFamily: "monospace", fontSize: "13px", color: "var(--accent)" }}>{col.label}</span>
-                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{col.count} clauses</span>
+                <div key={i} style={{ padding: "20px 24px", background: "var(--bg-card)", border: "3px solid #111111", borderBottom: "8px solid #111111" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: "bold", color: "#111111", textTransform: "uppercase" }}>{col.label}</span>
+                    <span style={{ fontSize: "14px", fontWeight: 900, color: "var(--accent)" }}>{col.count} CLAUSES</span>
                   </div>
-                  <div style={{ height: "3px", borderRadius: "2px", background: "rgba(232,148,255,0.1)" }}>
-                    <div style={{ height: "100%", borderRadius: "2px", width: `${(col.count / col.max) * 100}%`, background: "var(--accent)" }} />
+                  <div style={{ height: "10px", background: "var(--border)", border: "1px solid #111111" }}>
+                    <div style={{ height: "100%", width: `${(col.count / col.max) * 100}%`, background: "var(--accent)", borderRight: "2px solid #111111" }} />
                   </div>
                 </div>
               ))}
-              <div style={{ padding: "14px 18px", borderRadius: "14px", background: "rgba(66,255,161,0.06)", border: "1px solid rgba(66,255,161,0.2)", display: "flex", gap: "10px", alignItems: "center" }}>
-                <Check size={14} color="#42ffa1" />
-                <span style={{ fontSize: "13px", color: "#42ffa1" }}>GitHub PR #47 created · Slack sent · 38.4s</span>
+              <div style={{ padding: "20px 24px", background: "#111111", color: "var(--bg)", display: "flex", gap: "12px", alignItems: "center", borderBottom: "8px solid var(--accent)" }}>
+                <Check size={20} strokeWidth={4} />
+                <span style={{ fontSize: "14px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em" }}>GitHub PR #47 created · Slack sent · 38.4s</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════
-          MULTILINGUAL
-      ══════════════════════════════════════════ */}
-      <section style={{ padding: "120px 36px", textAlign: "center" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-          <p className="section-label" style={{ marginBottom: "14px", color: "var(--accent)" }}>MULTILINGUAL BY DESIGN</p>
-          <h2 className="font-display" style={{ fontSize: "clamp(48px, 6vw, 80px)", lineHeight: 0.88, color: "var(--text-header)", marginBottom: "40px", letterSpacing: "-0.02em" }}>
-            BUILT FOR<br /><span style={{ color: "rgba(232,148,255,0.45)" }}>BHARAT</span>
-          </h2>
-          <p style={{ fontSize: "17px", color: "var(--text-body)", marginBottom: "44px", maxWidth: "560px", margin: "0 auto 44px", lineHeight: "1.65" }}>
-            Photo a physical paper in any Indian script. Results delivered in your language.
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px" }}>
-            {[["हिंदी", true],["ಕನ್ನಡ", true],["தமிழ்", true],["తెలుగు", true],["മലയാളം", true],["বাংলা", true],["English", false],["Marathi", false]].map(([lang, isIndian], i) => (
-              <div key={i} style={{ padding: "10px 22px", borderRadius: "100px", fontSize: "15px", fontWeight: 500, background: isIndian ? "var(--accent-muted)" : "rgba(255,255,255,0.04)", border: `1px solid ${isIndian ? "var(--border-bright)" : "rgba(255,255,255,0.1)"}`, color: isIndian ? "var(--accent)" : "rgba(255,255,255,0.4)" }}>
-                {lang}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      </div> {/* End of theme-light */}
+      </main>
 
       {/* ══════════════════════════════════════════
-          CTA
+          MASSIVE FOOTER (Dark Theme Inherited)
       ══════════════════════════════════════════ */}
-      <section style={{ padding: "120px 36px 160px", borderTop: "1px solid var(--border)", textAlign: "center" }}>
-        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <Zap size={42} color="var(--accent)" style={{ margin: "0 auto 24px" }} />
-          <h2 className="font-display" style={{ fontSize: "clamp(72px, 13vw, 170px)", lineHeight: 0.88, letterSpacing: "-0.02em", marginBottom: "36px" }}>
-            READY TO<br /><span style={{ color: "rgba(232,148,255,0.45)" }}>ANALYSE?</span>
-          </h2>
-          <p style={{ fontSize: "17px", color: "var(--text-body)", marginBottom: "36px" }}>
-            Drop your first contract. Caveat runs the pipeline in under 45 seconds.
-          </p>
-          <div style={{ display: "flex", justifyContent: "center", gap: "14px" }}>
-            <Link href="/enterprise">
-              <button className="btn-primary" style={{ fontSize: "15px", padding: "14px 32px" }}>
-                <Building2 size={16} /> Enterprise Dashboard
-              </button>
-            </Link>
-            <Link href="/consumer">
-              <button className="btn-ghost" style={{ fontSize: "15px", padding: "14px 32px" }}>
-                <User size={16} /> Consumer Tool
-              </button>
-            </Link>
+      <footer style={{ position: "fixed", bottom: 0, left: 0, width: "100%", height: "100vh", zIndex: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px 36px 40px" }}>
+        
+        <div style={{ maxWidth: "1200px", margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: "60px", flex: 1, justifyContent: "center" }}>
+          
+          {/* MULTILINGUAL BLOCK */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "60px", alignItems: "center" }}>
+            <div>
+              <p style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "0.15em", color: "var(--accent)", marginBottom: "12px", textTransform: "uppercase" }}>MULTILINGUAL BY DESIGN</p>
+              <h2 className="font-display" style={{ fontSize: "clamp(48px, 6vw, 100px)", lineHeight: 1.0, color: "#ffffff", marginBottom: "16px", transform: "scaleX(0.8)", transformOrigin: "left" }}>
+                BUILT FOR<br />
+                <span style={{ color: "transparent", WebkitTextStroke: "2px var(--accent)" }}>BHARAT.</span>
+              </h2>
+              <p style={{ fontSize: "16px", color: "rgba(255,255,255,0.7)", maxWidth: "400px", lineHeight: 1.6, fontWeight: 500 }}>
+                Photograph a physical paper in any Indian script. Adversarial analysis delivered in your language.
+              </p>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignContent: "flex-start" }}>
+              {[["हिंदी", true],["ಕನ್ನಡ", true],["தமிழ்", true],["తెలుగు", true],["മലയാളം", true],["বাংলা", true],["English", false],["Marathi", false]].map(([lang, isIndian], i) => (
+                <div key={i} style={{ 
+                  padding: "16px 28px", fontSize: "18px", fontWeight: 800, textTransform: "uppercase",
+                  background: isIndian ? "var(--accent)" : "transparent", 
+                  color: isIndian ? "var(--bg)" : "rgba(255,255,255,0.5)",
+                  border: isIndian ? "none" : "2px solid rgba(255,255,255,0.2)",
+                }}>
+                  {lang}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* Footer */}
-      <footer style={{ borderTop: "1px solid var(--border)", padding: "24px 36px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "var(--text-muted)" }}>
-        <span className="font-display" style={{ fontSize: "16px", color: "var(--accent)" }}>CAVEAT</span>
-        <span>The fine print, finally.</span>
-        <span>Awareness & education only · Not legal advice</span>
+          {/* READY TO ANALYSE & LINKS */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "32px", marginTop: "40px" }}>
+            <h2 className="font-display" style={{ fontSize: "clamp(64px, 10vw, 150px)", lineHeight: 1.0, color: "#ffffff", letterSpacing: "-0.02em", transform: "scaleX(0.8)" }}>
+              READY TO<br />
+              <span style={{ color: "var(--accent)" }}>ANALYSE?</span>
+            </h2>
+            
+            <div style={{ display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap" }}>
+              <Link href="/enterprise">
+                <button style={{ padding: "16px 32px", background: "var(--accent)", color: "var(--bg)", border: "none", fontSize: "14px", fontWeight: 900, textTransform: "uppercase", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Building2 size={18} strokeWidth={3} /> Enterprise Dashboard
+                </button>
+              </Link>
+              <Link href="/consumer">
+                <button style={{ padding: "16px 32px", background: "transparent", color: "var(--accent)", border: "3px solid var(--accent)", fontSize: "14px", fontWeight: 900, textTransform: "uppercase", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <User size={18} strokeWidth={3} /> Consumer Tool
+                </button>
+              </Link>
+              <Link href="#extension">
+                <button style={{ padding: "16px 32px", background: "transparent", color: "#ffffff", border: "3px solid rgba(255,255,255,0.3)", fontSize: "14px", fontWeight: 900, textTransform: "uppercase", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Puzzle size={18} strokeWidth={3} /> Web Extension
+                </button>
+              </Link>
+            </div>
+          </div>
+
+        </div>
       </footer>
-      </div>
     </div>
   );
 }

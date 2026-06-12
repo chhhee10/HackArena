@@ -1,11 +1,11 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 
 const LINKS = [
   { href: "/enterprise", label: "Enterprise" },
   { href: "/consumer",   label: "Consumer" },
-  { href: "/chat",       label: "RAG Chat" },
 ];
 
 export default function Navbar() {
@@ -68,12 +68,12 @@ export default function Navbar() {
       </div>
 
       {/* CTA */}
-      <Link href="/enterprise">
+      <Link href="https://github.com/vijeta-patel/HackArena" target="_blank">
         <button
           className="btn-primary"
-          style={{ fontSize: "13px", padding: "10px 22px" }}
+          style={{ fontSize: "13px", padding: "10px 22px", display: "flex", alignItems: "center", gap: "8px" }}
         >
-          Analyse →
+          <ExternalLink size={14} /> Extension
         </button>
       </Link>
     </nav>

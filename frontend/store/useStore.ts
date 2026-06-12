@@ -10,7 +10,11 @@ export interface PipelineEvent {
   total?: number;
   redlined_count?: number;
   pr_url?: string;
+  slack_sent?: boolean;
   violation_count?: number;
+  high_count?: number;
+  medium_count?: number;
+  total_clauses?: number;
   duration_seconds?: number;
   error?: string;
   timestamp?: string;
@@ -33,6 +37,7 @@ export interface JobResult {
   contradictions: Contradiction[];
   historical_flags: HistoricalFlag[];
   github_pr_url: string;
+  slack_sent?: boolean;
   audit_trail: { file_hash: string; timestamp: string };
 }
 
@@ -68,21 +73,35 @@ export interface HistoricalFlag {
   original_risk_level: string;
 }
 
+// ── Consumer ──
+export interface FlaggedClause {
+  risk_level: "violation" | "high" | "medium" | "low" | "compliant";
+  clause_type: string;
+  clause_text: string;
+  why_flagged?: string;
+  what_it_means?: string;
+  consequence?: string;
+  financial_impact?: string;
+  fair_version?: string;
+  negotiation_tip?: string;
+  dark_pattern?: boolean;
+  dark_pattern_type?: string;
+  confidence?: number;
+  translated_explanation?: string;
+}
+
 export interface ConsumerAnalysis {
-  summary: string[];
-  unfair_clauses: {
-    clause_text: string;
-    explanation: string;
-    fair_alternative: string;
-  }[];
-  obligation_map: {
-    user_obligations: string[];
-    company_obligations: string[];
-  };
-  ambiguity_flags: { term: string; explanation: string }[];
-  benchmark_comparisons: { finding: string; context: string }[];
-  risk_level: string;
-  disclaimer: string;
+  overall_risk_score: number;
+  safe_to_sign: boolean;
+  power_imbalance?: string;
+  document_type?: string;
+  red_flags_count?: number;
+  dark_patterns_count?: number;
+  summary: string;
+  translated_summary?: string;
+  negotiation_summary?: string;
+  flagged_clauses: FlaggedClause[];
+  disclaimer?: string;
 }
 
 interface ChatMessage {

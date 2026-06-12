@@ -14,7 +14,12 @@ export async function uploadEnterprise(
     method: "POST",
     body: form,
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try { msg = JSON.parse(text).detail || text; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -36,7 +41,12 @@ export async function uploadConsumerFile(
     method: "POST",
     body: form,
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try { msg = JSON.parse(text).detail || text; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -52,7 +62,30 @@ export async function uploadConsumerPhoto(
     method: "POST",
     body: form,
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = text;
+    try { msg = JSON.parse(text).detail || text; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export async function analyseConsumerText(
+  text: string,
+  preferredLanguage = "en"
+) {
+  const res = await fetch(`${API_BASE}/api/consumer/analyse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, preferred_language: preferredLanguage, source: "web" }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    let msg = t;
+    try { msg = JSON.parse(t).detail || t; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
   return res.json();
 }
 
