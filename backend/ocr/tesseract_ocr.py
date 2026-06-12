@@ -86,8 +86,16 @@ def extract_text_from_image(image_path: str) -> dict:
             img, lang=lang, output_type=pytesseract.Output.DICT
         )
 
-        # Mean confidence ignoring -1 (no-text boxes)
-        confidences = [c for c in data["conf"] if c != -1]
+        # Safely parse confidences (pytesseract returns strings without pandas)
+        confidences = []
+        for c in data.get("conf", []):
+            try:
+                val = float(c)
+                if val != -1 and val > 0:
+                    confidences.append(val)
+            except (ValueError, TypeError):
+                pass
+        
         mean_conf = (sum(confidences) / len(confidences) / 100) if confidences else 0.0
 
         # Full text extraction

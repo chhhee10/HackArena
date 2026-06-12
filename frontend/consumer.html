@@ -392,11 +392,17 @@
     signBadge.textContent = a.safe_to_sign ? '✅ Safe to Sign' : '🚫 Do Not Sign';
     signBadge.className = 'badge ' + (a.safe_to_sign ? 'badge-compliant' : 'badge-violation');
 
+    const clauses = a.flagged_clauses || [];
     document.getElementById('power-badge').textContent = a.power_imbalance ? `⚖️ ${a.power_imbalance}` : '';
     document.getElementById('doc-type').textContent = (a.document_type || 'unknown').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-    document.getElementById('red-flags').textContent = a.red_flags_count ?? 0;
-    document.getElementById('dark-patterns').textContent = a.dark_patterns_count ?? 0;
-    document.getElementById('total-clauses').textContent = (a.flagged_clauses || []).length;
+    
+    // Manually calculate counts in case the LLM aggregate fields are missing
+    const redFlags = clauses.filter(c => (c.risk_level || '').toLowerCase() === 'violation').length;
+    const darkPatterns = clauses.filter(c => c.dark_pattern).length;
+
+    document.getElementById('red-flags').textContent = a.red_flags_count !== undefined ? a.red_flags_count : redFlags;
+    document.getElementById('dark-patterns').textContent = a.dark_patterns_count !== undefined ? a.dark_patterns_count : darkPatterns;
+    document.getElementById('total-clauses').textContent = clauses.length;
 
     document.getElementById('summary-text').textContent = a.summary || '';
     if (a.translated_summary && a.translated_summary !== a.summary) {
@@ -423,15 +429,15 @@
       btn.classList.add('active-filter');
     }
     const list = document.getElementById('clauses-list');
-    const toShow = level === 'all' ? allClauses : allClauses.filter(c => c.risk_level === level);
+    const toShow = level === 'all' ? allClauses : allClauses.filter(c => (c.risk_level || 'low').toLowerCase() === level);
     const riskOrder = { violation:0, high:1, medium:2, low:3, compliant:4 };
-    toShow.sort((a,b) => (riskOrder[a.risk_level]??5) - (riskOrder[b.risk_level]??5));
+    toShow.sort((a,b) => (riskOrder[(a.risk_level||'').toLowerCase()]??5) - (riskOrder[(b.risk_level||'').toLowerCase()]??5));
 
     list.innerHTML = toShow.map((c, i) => clauseCard(c, i)).join('');
   }
 
   function clauseCard(c, i) {
-    const lvl = c.risk_level || 'low';
+    const lvl = (c.risk_level || 'low').toLowerCase();
     const emojis = { violation:'🔴', high:'🟠', medium:'🟡', low:'🟢', compliant:'✅' };
     const darkBadge = c.dark_pattern
       ? `<span class="dark-pattern-pill">🎭 ${(c.dark_pattern_type||'dark pattern').replace(/_/g,' ')}</span>` : '';
