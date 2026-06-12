@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+.env
+!.env.example
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Database & storage
+*.db
+*.sqlite3
+chroma_db/
+uploads/
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build artefacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Node (extension build)
+node_modules/
+*.crx
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# AI / Agent & Planning files
+files/
+.ai/
+.cursor/
+.cursorrules
+.vscode/
+scratchpad.md
+planning/
+docs/
+
+# OS / System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Secrets & Credentials
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+*.crt
+secrets.json
+credentials.json
+service-account.json
+client_secret.json
+oauth.json
+*.p12
+*.pfx

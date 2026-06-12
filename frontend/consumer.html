@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LexGuard — Analyse Your Contract</title>
+  <meta name="description" content="Upload a contract and get an adversarial AI risk analysis in seconds.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .page { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+    .page-header { margin-bottom: 40px; }
+    .upload-section { margin-bottom: 32px; }
+    .lang-row { display: flex; gap: 12px; align-items: flex-end; margin-top: 20px; }
+    .lang-row .input-group { flex: 1; }
+    /* ── Results ── */
+    #results { display: none; }
+    .score-section {
+      display: grid; grid-template-columns: auto 1fr; gap: 32px;
+      align-items: center; padding: 32px; margin-bottom: 24px;
+    }
+    .gauge-svg { transform: rotate(-90deg); }
+    .gauge-bg   { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 10; }
+    .gauge-fill { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1); }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .meta-item { padding: 16px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.03); border: 1px solid var(--border); }
+    .meta-item-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); font-weight: 600; margin-bottom: 6px; }
+    .meta-item-value { font-size: 1rem; font-weight: 600; }
+    .summary-box { padding: 20px 24px; border-radius: var(--radius-sm); background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.2); margin-bottom: 24px; }
+    .summary-box p { color: var(--text); font-size: 0.95rem; line-height: 1.7; }
+    .clauses-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .clauses-list { display: flex; flex-direction: column; gap: 10px; }
+    .clause-type-pill {
+      padding: 3px 9px; border-radius: 6px; font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      background: rgba(255,255,255,0.07); color: var(--text-2);
+    }
+    .clause-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .detail-box { padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); }
+    .detail-box-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); font-weight: 600; margin-bottom: 8px; }
+    .detail-box-body { font-size: 0.85rem; color: var(--text-2); line-height: 1.6; }
+    .original-text {
+      padding: 14px; border-radius: 10px;
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+      color: var(--text-3); line-height: 1.7; margin-top: 16px;
+      max-height: 120px; overflow-y: auto;
+    }
+    .fair-version {
+      padding: 14px; border-radius: 10px; margin-top: 12px;
+      background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2);
+      font-size: 0.85rem; color: #6EE7B7; line-height: 1.65;
+    }
+    .neg-tip {
+      padding: 14px; border-radius: 10px; margin-top: 12px;
+      background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.2);
+      font-size: 0.85rem; color: var(--cyan); line-height: 1.65;
+    }
+    .loading-state { display: none; text-align: center; padding: 60px 24px; }
+    .loading-steps { margin-top: 32px; display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin-left: auto; margin-right: auto; }
+    .loading-step { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); font-size: 0.875rem; color: var(--text-2); }
+    .loading-step.active { border-color: var(--primary); color: var(--text); background: rgba(99,102,241,0.07); }
+    .loading-step.done   { border-color: var(--compliant); color: #6EE7B7; background: rgba(16,185,129,0.06); }
+    @media (max-width: 640px) {
+      .score-section { grid-template-columns: 1fr; }
+      .meta-grid, .clause-detail-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">⚖️ LexGuard</a>
+  <div class="nav-links">
+    <a href="consumer.html" class="nav-link active">Consumer</a>
+    <a href="enterprise.html" class="nav-link">Enterprise</a>
+    <a href="chat.html" class="nav-link">Q&amp;A</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header fade-up">
+    <h1>Analyse Your <span class="grad">Contract</span></h1>
+    <p class="mt-12">Upload a document or paste text. Our 3-stage AI pipeline will find every hidden risk.</p>
+  </div>
+
+  <!-- ── Upload Section ── -->
+  <div class="upload-section glass-1 p-24 fade-up fade-up-1" id="upload-section">
+    <div class="tabs" id="input-tabs">
+      <button class="tab-btn active" data-tab="file">📄 Upload File</button>
+      <button class="tab-btn" data-tab="photo">📷 Photo</button>
+      <button class="tab-btn" data-tab="text">📝 Paste Text</button>
+    </div>
+
+    <!-- File tab -->
+    <div class="tab-content active mt-20" id="tab-file">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" accept=".pdf,.docx">
+        <div class="dropzone-icon">📂</div>
+        <div class="dropzone-text">Drop your PDF or DOCX here, or click to browse</div>
+        <div class="dropzone-sub">Max 50 MB · PDF, DOCX</div>
+      </div>
+      <div id="file-selected" class="hidden mt-16 alert alert-info">
+        <span>📎</span> <span id="file-name-display"></span>
+      </div>
+    </div>
+
+    <!-- Photo tab -->
+    <div class="tab-content mt-20" id="tab-photo">
+      <div class="dropzone" id="photo-dropzone">
+        <input type="file" id="photo-input" accept="image/*">
+        <div class="dropzone-icon">📸</div>
+        <div class="dropzone-text">Upload a photo of your physical document</div>
+        <div class="dropzone-sub">JPEG, PNG, WEBP · Good lighting required for accurate OCR</div>
+      </div>
+      <div id="photo-selected" class="hidden mt-16 alert alert-info">
+        <span>🖼️</span> <span id="photo-name-display"></span>
+      </div>
+    </div>
+
+    <!-- Text tab -->
+    <div class="tab-content mt-20" id="tab-text">
+      <label class="label" for="text-input">Paste contract text</label>
+      <textarea class="input" id="text-input" rows="8" placeholder="Paste the full contract text here…"></textarea>
+    </div>
+
+    <!-- Language & Analyse -->
+    <div class="lang-row mt-20">
+      <div class="input-group">
+        <label class="label" for="lang-select">Output language</label>
+        <select class="input" id="lang-select">
+          <option value="en">English</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="bn">বাংলা (Bengali)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-lg" id="analyse-btn" onclick="startAnalysis()">
+        🔍 Analyse Contract
+      </button>
+    </div>
+
+    <div id="error-box" class="hidden alert alert-err mt-16">
+      <span>⚠️</span> <span id="error-msg"></span>
+    </div>
+  </div>
+
+  <!-- ── Loading ── -->
+  <div class="loading-state" id="loading-state">
+    <div class="spinner" style="margin: 0 auto;"></div>
+    <h3 class="mt-24">Analysing your contract…</h3>
+    <p class="mt-8">3-stage adversarial AI pipeline running</p>
+    <div class="loading-steps">
+      <div class="loading-step" id="ls-1">
+        <span>🔎</span> Stage 1 — Parsing &amp; classifying clauses
+      </div>
+      <div class="loading-step" id="ls-2">
+        <span>⚔️</span> Stage 2 — Adversarial risk scan
+      </div>
+      <div class="loading-step" id="ls-3">
+        <span>⚡</span> Stage 3 — Consequence simulation &amp; scoring
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Results ── -->
+  <div id="results">
+
+    <!-- Score card -->
+    <div class="glass-1 score-section fade-up">
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" width="160" height="160" viewBox="0 0 160 160">
+          <circle class="gauge-bg" cx="80" cy="80" r="68"/>
+          <circle class="gauge-fill" id="gauge-circle" cx="80" cy="80" r="68"
+            stroke-dasharray="427" stroke-dashoffset="427"/>
+        </svg>
+        <div class="gauge-value">
+          <div id="score-num" style="color:#EF4444;">—</div>
+          <div style="font-size:0.7rem;color:var(--text-3);margin-top:4px;">Risk Score</div>
+        </div>
+      </div>
+      <div>
+        <div class="flex items-center gap-12 mb-16">
+          <span id="sign-badge" class="badge">—</span>
+          <span id="power-badge" style="font-size:0.85rem;color:var(--text-2);"></span>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-item">
+            <div class="meta-item-label">Document Type</div>
+            <div class="meta-item-value" id="doc-type">—</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-item-label">Red Flags</div>
+            <div class="meta-item-value" id="red-flags" style="color:#EF4444;">—</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-item-label">Dark Patterns</div>
+            <div class="meta-item-value" id="dark-patterns" style="color:#EC4899;">—</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-item-label">Total Clauses</div>
+            <div class="meta-item-value" id="total-clauses">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-box fade-up">
+      <div class="label mb-8">Summary</div>
+      <p id="summary-text"></p>
+      <p id="translated-summary" class="mt-8" style="color:var(--text-3);font-size:0.85rem;font-style:italic;"></p>
+    </div>
+
+    <!-- Negotiation summary -->
+    <div id="neg-summary-box" class="hidden glass p-20 mb-24 fade-up">
+      <div class="label mb-8">🤝 Negotiation Strategy</div>
+      <p id="neg-summary-text" style="color:var(--text);font-size:0.9rem;line-height:1.7;"></p>
+    </div>
+
+    <!-- Clauses -->
+    <div class="clauses-header fade-up">
+      <h3>Flagged Clauses</h3>
+      <div class="flex gap-8" id="filter-bar">
+        <button class="btn btn-ghost btn-sm active-filter" data-filter="all" onclick="filterClauses('all',this)">All</button>
+        <button class="btn btn-ghost btn-sm" data-filter="violation" onclick="filterClauses('violation',this)">🔴 Violation</button>
+        <button class="btn btn-ghost btn-sm" data-filter="high" onclick="filterClauses('high',this)">🟠 High</button>
+        <button class="btn btn-ghost btn-sm" data-filter="medium" onclick="filterClauses('medium',this)">🟡 Medium</button>
+      </div>
+    </div>
+    <div class="clauses-list fade-up" id="clauses-list"></div>
+
+    <!-- Re-analyse -->
+    <div class="text-center mt-32 fade-up">
+      <button class="btn btn-ghost" onclick="resetUI()">← Analyse another contract</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = '';  // same origin
+
+  // ── Tab switching ──
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── File display ──
+  document.getElementById('file-input').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) { document.getElementById('file-name-display').textContent = f.name; document.getElementById('file-selected').classList.remove('hidden'); }
+  });
+  document.getElementById('photo-input').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) { document.getElementById('photo-name-display').textContent = f.name; document.getElementById('photo-selected').classList.remove('hidden'); }
+  });
+
+  // ── Drag & drop ──
+  ['dropzone','photo-dropzone'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('drag-over'); });
+  });
+
+  // ── Loading steps simulation ──
+  let loadingInterval;
+  function startLoadingSteps() {
+    const steps = ['ls-1','ls-2','ls-3'];
+    let i = 0;
+    steps.forEach(id => document.getElementById(id).className = 'loading-step');
+    document.getElementById(steps[0]).classList.add('active');
+    loadingInterval = setInterval(() => {
+      if (i < steps.length - 1) {
+        document.getElementById(steps[i]).classList.remove('active');
+        document.getElementById(steps[i]).classList.add('done');
+        i++;
+        document.getElementById(steps[i]).classList.add('active');
+      }
+    }, 8000);
+  }
+  function stopLoadingSteps() {
+    clearInterval(loadingInterval);
+    ['ls-1','ls-2','ls-3'].forEach(id => {
+      document.getElementById(id).classList.remove('active');
+      document.getElementById(id).classList.add('done');
+    });
+  }
+
+  // ── Analysis ──
+  async function startAnalysis() {
+    const lang = document.getElementById('lang-select').value;
+    hideError();
+
+    const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+    let formData;
+
+    if (activeTab === 'file') {
+      const file = document.getElementById('file-input').files[0];
+      if (!file) { showError('Please select a PDF or DOCX file.'); return; }
+      formData = new FormData();
+      formData.append('file', file);
+      formData.append('preferred_language', lang);
+    } else if (activeTab === 'photo') {
+      const photo = document.getElementById('photo-input').files[0];
+      if (!photo) { showError('Please select a photo of the document.'); return; }
+      formData = new FormData();
+      formData.append('image', photo);
+      formData.append('preferred_language', lang);
+    } else {
+      const text = document.getElementById('text-input').value.trim();
+      if (text.length < 50) { showError('Please paste at least 50 characters of contract text.'); return; }
+    }
+
+    showLoading();
+
+    try {
+      let data;
+      if (activeTab === 'text') {
+        const text = document.getElementById('text-input').value.trim();
+        const resp = await fetch(API + '/api/consumer/analyse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, preferred_language: lang, source: 'web' })
+        });
+        data = await resp.json();
+      } else {
+        const endpoint = activeTab === 'photo' ? '/api/consumer/photo' : '/api/consumer/upload';
+        const resp = await fetch(API + endpoint, { method: 'POST', body: formData });
+        data = await resp.json();
+
+        if (data.status === 'low_confidence') {
+          hideLoading();
+          showError(`OCR confidence too low (${(data.ocr_confidence*100).toFixed(0)}%). Please retake the photo in good lighting.`);
+          return;
+        }
+      }
+
+      const analysis = data.analysis || data;
+      stopLoadingSteps();
+      renderResults(analysis);
+    } catch (err) {
+      hideLoading();
+      showError('Analysis failed: ' + (err.message || 'Unknown error. Is the server running?'));
+    }
+  }
+
+  function showLoading() {
+    document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('loading-state').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    startLoadingSteps();
+  }
+  function hideLoading() {
+    document.getElementById('upload-section').style.display = 'block';
+    document.getElementById('loading-state').style.display = 'none';
+  }
+
+  // ── Render results ──
+  function renderResults(a) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+
+    const score = a.overall_risk_score || 0;
+    const scoreColor = score >= 70 ? '#EF4444' : score >= 40 ? '#F97316' : '#22C55E';
+    document.getElementById('score-num').textContent = score;
+    document.getElementById('score-num').style.color = scoreColor;
+
+    // Animate gauge
+    const circumference = 427;
+    const offset = circumference - (score / 100) * circumference;
+    const circle = document.getElementById('gauge-circle');
+    circle.style.stroke = scoreColor;
+    setTimeout(() => { circle.style.strokeDashoffset = offset; }, 100);
+
+    // Sign badge
+    const signBadge = document.getElementById('sign-badge');
+    signBadge.textContent = a.safe_to_sign ? '✅ Safe to Sign' : '🚫 Do Not Sign';
+    signBadge.className = 'badge ' + (a.safe_to_sign ? 'badge-compliant' : 'badge-violation');
+
+    document.getElementById('power-badge').textContent = a.power_imbalance ? `⚖️ ${a.power_imbalance}` : '';
+    document.getElementById('doc-type').textContent = (a.document_type || 'unknown').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    document.getElementById('red-flags').textContent = a.red_flags_count ?? 0;
+    document.getElementById('dark-patterns').textContent = a.dark_patterns_count ?? 0;
+    document.getElementById('total-clauses').textContent = (a.flagged_clauses || []).length;
+
+    document.getElementById('summary-text').textContent = a.summary || '';
+    if (a.translated_summary && a.translated_summary !== a.summary) {
+      document.getElementById('translated-summary').textContent = a.translated_summary;
+    }
+
+    if (a.negotiation_summary) {
+      document.getElementById('neg-summary-text').textContent = a.negotiation_summary;
+      document.getElementById('neg-summary-box').classList.remove('hidden');
+    }
+
+    renderClauses(a.flagged_clauses || []);
+  }
+
+  let allClauses = [];
+  function renderClauses(clauses) {
+    allClauses = clauses;
+    filterClauses('all', null);
+  }
+
+  function filterClauses(level, btn) {
+    if (btn) {
+      document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active-filter'));
+      btn.classList.add('active-filter');
+    }
+    const list = document.getElementById('clauses-list');
+    const toShow = level === 'all' ? allClauses : allClauses.filter(c => c.risk_level === level);
+    const riskOrder = { violation:0, high:1, medium:2, low:3, compliant:4 };
+    toShow.sort((a,b) => (riskOrder[a.risk_level]??5) - (riskOrder[b.risk_level]??5));
+
+    list.innerHTML = toShow.map((c, i) => clauseCard(c, i)).join('');
+  }
+
+  function clauseCard(c, i) {
+    const lvl = c.risk_level || 'low';
+    const emojis = { violation:'🔴', high:'🟠', medium:'🟡', low:'🟢', compliant:'✅' };
+    const darkBadge = c.dark_pattern
+      ? `<span class="dark-pattern-pill">🎭 ${(c.dark_pattern_type||'dark pattern').replace(/_/g,' ')}</span>` : '';
+    const typePill = `<span class="clause-type-pill">${(c.clause_type||'other').replace(/_/g,' ')}</span>`;
+
+    const detailRows = [
+      c.why_flagged    && { title:'⚠️ Why Flagged',          body: c.why_flagged },
+      c.what_it_means  && { title:'💡 What It Means',         body: c.what_it_means },
+      c.consequence    && { title:'⚡ Consequence',            body: c.consequence },
+      c.financial_impact && { title:'💰 Financial Impact',    body: c.financial_impact },
+    ].filter(Boolean);
+
+    const detailHtml = `<div class="clause-detail-grid">${detailRows.map(r => `
+      <div class="detail-box">
+        <div class="detail-box-title">${r.title}</div>
+        <div class="detail-box-body">${escHtml(r.body)}</div>
+      </div>`).join('')}</div>`;
+
+    const translatedHtml = (c.translated_explanation && c.translated_explanation !== c.why_flagged)
+      ? `<div class="detail-box mt-12" style="grid-column:1/-1">
+           <div class="detail-box-title">🌐 In Your Language</div>
+           <div class="detail-box-body">${escHtml(c.translated_explanation)}</div>
+         </div>` : '';
+
+    const fairHtml = c.fair_version
+      ? `<div class="detail-box-title mt-16">✍️ Fair Version</div>
+         <div class="fair-version">${escHtml(c.fair_version)}</div>` : '';
+
+    const negHtml = c.negotiation_tip
+      ? `<div class="detail-box-title mt-12">🤝 Negotiation Tip</div>
+         <div class="neg-tip">${escHtml(c.negotiation_tip)}</div>` : '';
+
+    const origText = c.clause_text
+      ? `<div class="original-text">${escHtml(c.clause_text.substring(0,500))}${c.clause_text.length>500?'…':''}</div>` : '';
+
+    const confidence = c.confidence ? `<span class="text-xs text-3 mono">${(c.confidence*100).toFixed(0)}%</span>` : '';
+
+    return `
+    <div class="clause-card" id="clause-${i}">
+      <div class="clause-header" onclick="toggleClause(${i})">
+        <span style="font-size:1.1rem;">${emojis[lvl]||'⚪'}</span>
+        <span class="badge badge-${lvl}">${lvl}</span>
+        ${typePill}
+        ${darkBadge}
+        ${confidence}
+        <span class="clause-expand">▾</span>
+      </div>
+      <div class="clause-body">
+        ${detailHtml}
+        ${translatedHtml}
+        ${origText}
+        ${fairHtml}
+        ${negHtml}
+      </div>
+    </div>`;
+  }
+
+  function toggleClause(i) {
+    document.getElementById('clause-'+i).classList.toggle('open');
+  }
+
+  function escHtml(s) {
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function resetUI() {
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('upload-section').style.display = 'block';
+    document.getElementById('file-input').value = '';
+    document.getElementById('photo-input').value = '';
+    document.getElementById('text-input').value = '';
+    document.getElementById('file-selected').classList.add('hidden');
+    document.getElementById('photo-selected').classList.add('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showError(msg) {
+    document.getElementById('error-msg').textContent = msg;
+    document.getElementById('error-box').classList.remove('hidden');
+  }
+  function hideError() {
+    document.getElementById('error-box').classList.add('hidden');
+  }
+</script>
+</body>
+</html>
