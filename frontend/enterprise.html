@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LexGuard — Enterprise Pipeline</title>
+  <meta name="description" content="7-agent enterprise contract compliance pipeline with real-time SSE progress.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+    .layout { display: grid; grid-template-columns: 360px 1fr; gap: 24px; margin-top: 32px; align-items: start; }
+    .sidebar-panel { display: flex; flex-direction: column; gap: 20px; }
+    .upload-card { padding: 24px; }
+    .org-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .stepper-card { padding: 24px; }
+    .results-card { padding: 28px; display: none; }
+    .stat-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 24px; }
+    .stat-mini { padding: 14px 10px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.03); border: 1px solid var(--border); text-align: center; }
+    .stat-mini-num { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .stat-mini-lbl { font-size: 0.68rem; color: var(--text-3); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .pr-link { padding: 16px 20px; border-radius: var(--radius-sm); background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25); display: flex; align-items: center; gap: 12px; text-decoration: none; transition: background 0.2s; }
+    .pr-link:hover { background: rgba(99,102,241,0.18); }
+    .risk-table-wrap { overflow-x: auto; }
+    .tr-violation td { border-left: 3px solid var(--violation); }
+    .tr-high td      { border-left: 3px solid var(--high); }
+    .tr-medium td    { border-left: 3px solid var(--medium); }
+    .tr-low td       { border-left: 3px solid var(--low); }
+    .tr-compliant td { border-left: 3px solid var(--compliant); }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .stat-row { grid-template-columns: repeat(3,1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="index.html" class="nav-logo">⚖️ LexGuard</a>
+  <div class="nav-links">
+    <a href="consumer.html" class="nav-link">Consumer</a>
+    <a href="enterprise.html" class="nav-link active">Enterprise</a>
+    <a href="chat.html" class="nav-link">Q&amp;A</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="fade-up">
+    <h1>Enterprise <span class="grad">Compliance Pipeline</span></h1>
+    <p class="mt-8">7-agent LangGraph · DPDP · GDPR · RBI · Live SSE progress · GitHub PR · Slack</p>
+  </div>
+
+  <div class="layout">
+
+    <!-- Left sidebar -->
+    <div class="sidebar-panel">
+
+      <!-- Upload card -->
+      <div class="glass-1 upload-card fade-up fade-up-1">
+        <h3 class="mb-16">📤 Upload Contract</h3>
+        <div class="org-row">
+          <div>
+            <label class="label" for="org-id">Org ID</label>
+            <input class="input" id="org-id" placeholder="acme-corp" value="acme-corp">
+          </div>
+          <div>
+            <label class="label" for="proj-id">Project ID</label>
+            <input class="input" id="proj-id" placeholder="vendor-q3" value="vendor-q3">
+          </div>
+        </div>
+        <label class="label" for="ent-file">Contract File</label>
+        <div class="dropzone" id="ent-dropzone" style="padding:28px 16px;">
+          <input type="file" id="ent-file" accept=".pdf,.docx">
+          <div class="dropzone-icon" style="font-size:1.8rem;">📂</div>
+          <div class="dropzone-text" style="font-size:0.85rem;">Drop or click to select</div>
+          <div class="dropzone-sub">PDF · DOCX · Max 50MB</div>
+        </div>
+        <div id="ent-file-info" class="hidden alert alert-info mt-12 text-sm">
+          <span>📎</span> <span id="ent-file-name"></span>
+        </div>
+        <div id="ent-error" class="hidden alert alert-err mt-12 text-sm">
+          <span>⚠️</span> <span id="ent-error-msg"></span>
+        </div>
+        <button class="btn btn-primary w-full mt-16" id="ent-btn" onclick="startEnterprise()" style="justify-content:center;">
+          🚀 Start Analysis
+        </button>
+      </div>
+
+      <!-- Stepper -->
+      <div class="glass-1 stepper-card fade-up fade-up-2">
+        <h3 class="mb-20">🤖 Agent Progress</h3>
+        <div class="stepper" id="stepper">
+          <div class="step" id="step-ingestor">
+            <div class="step-dot">1</div>
+            <div class="step-body">
+              <div class="step-name">Ingestor</div>
+              <div class="step-desc">Validate, hash, record</div>
+            </div>
+          </div>
+          <div class="step" id="step-extractor">
+            <div class="step-dot">2A</div>
+            <div class="step-body">
+              <div class="step-name">Extractor</div>
+              <div class="step-desc">Parse &amp; segment clauses</div>
+            </div>
+          </div>
+          <div class="step" id="step-reg_loader">
+            <div class="step-dot">2B</div>
+            <div class="step-body">
+              <div class="step-name">Regulation Loader</div>
+              <div class="step-desc">DPDP · GDPR · RBI corpus</div>
+            </div>
+          </div>
+          <div class="step" id="step-memory">
+            <div class="step-dot">2C</div>
+            <div class="step-body">
+              <div class="step-name">Memory Scanner</div>
+              <div class="step-desc">Contradiction + history</div>
+            </div>
+          </div>
+          <div class="step" id="step-classifier">
+            <div class="step-dot">3</div>
+            <div class="step-body">
+              <div class="step-name">Classifier</div>
+              <div class="step-desc">Risk level + regulation</div>
+            </div>
+          </div>
+          <div class="step" id="step-redliner">
+            <div class="step-dot">5</div>
+            <div class="step-body">
+              <div class="step-name">Redliner</div>
+              <div class="step-desc">Compliant replacements</div>
+            </div>
+          </div>
+          <div class="step" id="step-reporter">
+            <div class="step-dot">6</div>
+            <div class="step-body">
+              <div class="step-name">Reporter</div>
+              <div class="step-desc">GitHub PR · Slack · DB</div>
+            </div>
+          </div>
+        </div>
+        <div id="stream-status" class="text-xs text-3 mt-16 text-center mono"></div>
+      </div>
+    </div>
+
+    <!-- Right: results -->
+    <div id="main-panel">
+
+      <!-- Idle -->
+      <div id="idle-panel" class="glass p-32 text-center fade-up fade-up-1">
+        <div style="font-size:3rem;margin-bottom:16px;">🏢</div>
+        <h3>Enterprise Pipeline Ready</h3>
+        <p class="mt-8">Upload a contract and watch all 7 agents work in real-time via SSE.</p>
+        <div class="flex gap-12 justify-center mt-24 flex-wrap">
+          <span class="alert alert-info" style="font-size:0.78rem;">⚡ Live SSE stream</span>
+          <span class="alert alert-ok"   style="font-size:0.78rem;">📋 GitHub PR auto-created</span>
+          <span class="alert alert-warn" style="font-size:0.78rem;">🔔 Slack alert sent</span>
+        </div>
+      </div>
+
+      <!-- Results (shown after pipeline_complete) -->
+      <div class="glass-1 results-card fade-up" id="results-panel">
+        <div class="flex items-center justify-between mb-20">
+          <h3>📊 Analysis Complete</h3>
+          <span id="duration-badge" class="badge badge-compliant mono"></span>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-mini">
+            <div class="stat-mini-num" id="r-violation" style="color:var(--violation);">0</div>
+            <div class="stat-mini-lbl">Violations</div>
+          </div>
+          <div class="stat-mini">
+            <div class="stat-mini-num" id="r-high" style="color:var(--high);">0</div>
+            <div class="stat-mini-lbl">High</div>
+          </div>
+          <div class="stat-mini">
+            <div class="stat-mini-num" id="r-medium" style="color:var(--medium);">0</div>
+            <div class="stat-mini-lbl">Medium</div>
+          </div>
+          <div class="stat-mini">
+            <div class="stat-mini-num" id="r-low" style="color:var(--low);">0</div>
+            <div class="stat-mini-lbl">Low</div>
+          </div>
+          <div class="stat-mini">
+            <div class="stat-mini-num" id="r-total">0</div>
+            <div class="stat-mini-lbl">Total</div>
+          </div>
+        </div>
+
+        <div id="pr-section" class="hidden mb-20">
+          <a id="pr-link" href="#" target="_blank" rel="noopener" class="pr-link">
+            <span style="font-size:1.4rem;">🐙</span>
+            <div>
+              <div style="font-weight:600;color:var(--text);">View Full Risk Report on GitHub</div>
+              <div id="pr-url-text" class="text-xs text-3 mono mt-4"></div>
+            </div>
+            <span style="margin-left:auto;color:var(--text-3);">↗</span>
+          </a>
+        </div>
+
+        <div id="slack-alert" class="hidden alert alert-ok mb-20 text-sm">
+          🔔 Slack alert sent to your channel
+        </div>
+
+        <h3 class="mb-12">📋 Risk Summary by Level</h3>
+        <div class="risk-table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Risk Level</th><th>Count</th><th>Action Required</th></tr>
+            </thead>
+            <tbody id="risk-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="alert alert-info mt-20 text-sm">
+          💬 Use the <a href="chat.html" style="color:var(--primary);font-weight:600;">Q&amp;A tab</a> to ask questions about these contracts using RAG.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let eventSource = null;
+const stepOrder = ['ingestor','extractor','reg_loader','memory','classifier','redliner','reporter'];
+const eventToStep = {
+  ingest_complete: 'ingestor',
+  extraction_complete: 'extractor',
+  memory_scan_complete: 'memory',
+  classification_complete: 'classifier',
+  redline_complete: 'redliner',
+  pipeline_complete: 'reporter',
+};
+
+document.getElementById('ent-file').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) {
+    document.getElementById('ent-file-name').textContent = f.name;
+    document.getElementById('ent-file-info').classList.remove('hidden');
+  }
+});
+
+function setStep(id, state) {
+  const el = document.getElementById('step-' + id);
+  if (el) el.className = 'step ' + state;
+}
+function resetSteps() { stepOrder.forEach(s => setStep(s, '')); }
+
+async function startEnterprise() {
+  const orgId  = document.getElementById('org-id').value.trim();
+  const projId = document.getElementById('proj-id').value.trim();
+  const file   = document.getElementById('ent-file').files[0];
+  if (!orgId || !projId) { showErr('Enter Organisation ID and Project ID.'); return; }
+  if (!file)             { showErr('Select a PDF or DOCX file.'); return; }
+
+  hideErr();
+  setBtn('Uploading…', true);
+  resetSteps();
+  document.getElementById('idle-panel').style.display = 'none';
+  document.getElementById('results-panel').style.display = 'none';
+  document.getElementById('stream-status').textContent = 'Uploading…';
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('org_id', orgId);
+    form.append('project_id', projId);
+    const resp = await fetch(API + '/api/enterprise/upload', { method: 'POST', body: form });
+    const data = await resp.json();
+    if (!resp.ok) { showErr(data.detail || 'Upload failed'); setBtn('🚀 Start Analysis', false); return; }
+
+    const jobId = data.job_id;
+    setBtn('Running…', true);
+    document.getElementById('stream-status').textContent = `Job ${jobId} — live…`;
+
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource(API + '/api/stream/' + jobId);
+
+    eventSource.onmessage = e => {
+      let ev; try { ev = JSON.parse(e.data); } catch { return; }
+      document.getElementById('stream-status').textContent = ev.event;
+
+      const mapped = eventToStep[ev.event];
+      if (mapped) {
+        const idx = stepOrder.indexOf(mapped);
+        for (let i = 0; i < idx; i++) setStep(stepOrder[i], 'done');
+        setStep(mapped, idx === stepOrder.length - 1 ? 'done' : 'active');
+      }
+
+      if (ev.event === 'classification_progress') {
+        setStep('classifier', 'active');
+        document.getElementById('stream-status').textContent = `Classifying ${ev.done}/${ev.total}…`;
+      }
+
+      if (ev.event === 'pipeline_complete') {
+        eventSource.close();
+        stepOrder.forEach(s => setStep(s, 'done'));
+        setBtn('✅ Complete', true);
+        renderResults(ev);
+      }
+
+      if (ev.event === 'pipeline_error') {
+        eventSource.close();
+        showErr('Pipeline error: ' + (ev.error || 'Unknown'));
+        setBtn('🚀 Start Analysis', false);
+        document.getElementById('idle-panel').style.display = 'block';
+      }
+    };
+
+    eventSource.onerror = () => {
+      document.getElementById('stream-status').textContent = 'Stream closed';
+    };
+
+  } catch (err) {
+    showErr('Request failed: ' + err.message);
+    setBtn('🚀 Start Analysis', false);
+    document.getElementById('idle-panel').style.display = 'block';
+  }
+}
+
+function renderResults(ev) {
+  document.getElementById('results-panel').style.display = 'block';
+  document.getElementById('duration-badge').textContent = ev.duration_seconds ? ev.duration_seconds + 's' : '';
+  document.getElementById('r-violation').textContent = ev.violation_count ?? 0;
+  document.getElementById('r-high').textContent = ev.high_count ?? 0;
+  document.getElementById('r-medium').textContent = ev.medium_count ?? 0;
+  document.getElementById('r-total').textContent = ev.total_clauses ?? 0;
+
+  if (ev.pr_url) {
+    document.getElementById('pr-link').href = ev.pr_url;
+    document.getElementById('pr-url-text').textContent = ev.pr_url;
+    document.getElementById('pr-section').classList.remove('hidden');
+  }
+  if (ev.slack_sent) {
+    document.getElementById('slack-alert').classList.remove('hidden');
+  }
+
+  const tbody = document.getElementById('risk-tbody');
+  const levels = [
+    { key:'violation', count: ev.violation_count??0, action:'Must redline before signing' },
+    { key:'high',      count: ev.high_count??0,      action:'Legal review recommended' },
+    { key:'medium',    count: ev.medium_count??0,    action:'Negotiation advised' },
+    { key:'low',       count: (ev.total_clauses??0) - (ev.violation_count??0) - (ev.high_count??0) - (ev.medium_count??0), action:'Monitor' },
+  ];
+  tbody.innerHTML = levels.filter(l => l.count > 0).map(l => `
+    <tr class="tr-${l.key}">
+      <td><span class="badge badge-${l.key}">${l.key}</span></td>
+      <td><strong>${l.count}</strong></td>
+      <td style="color:var(--text-2);font-size:0.85rem;">${l.action}</td>
+    </tr>`).join('');
+}
+
+function showErr(msg) {
+  document.getElementById('ent-error-msg').textContent = msg;
+  document.getElementById('ent-error').classList.remove('hidden');
+}
+function hideErr() { document.getElementById('ent-error').classList.add('hidden'); }
+function setBtn(text, disabled) {
+  const btn = document.getElementById('ent-btn');
+  btn.textContent = text; btn.disabled = disabled;
+}
+</script>
+</body>
+</html>
